@@ -61,14 +61,13 @@ var styleTask = function(stylesPath, srcs) {
     .pipe($.size({title: stylesPath}));
 };
 
-var imageOptimizeTask = function(src, dest) {
+var imageOptimizeTask = function(src, dest, f) {
   return gulp.src(src)
-    .pipe($.imagemin({
-      progressive: true,
-      interlaced: true
-    }))
+    .pipe($.size({title: 'before ' + dest}))
     .pipe(gulp.dest(dest))
-    .pipe($.size({title: 'images'}));
+    .pipe(f())
+    .pipe(gulp.dest(dest))
+    .pipe($.size({title: 'after ' + dest}));
 };
 
 var optimizeHtmlTask = function(src, dest) {
@@ -118,7 +117,7 @@ gulp.task('ensureFiles', function(cb) {
 
 // Optimize images
 gulp.task('images', function() {
-  return imageOptimizeTask('app/images/**/*', dist('images'));
+  return imageOptimizeTask('app/images/**/*', dist('images'), require('gulp-webp'));
 });
 
 // Copy all files at the root level (app)
@@ -137,7 +136,7 @@ gulp.task('copy', function() {
   // Copy over only the bower_components we need
   // These are things which cannot be vulcanized
   var bower = gulp.src([
-    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill}/**/*'
+    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill,webpjs}/**/*'
   ]).pipe(gulp.dest(dist('bower_components')));
 
   return merge(app, bower)
@@ -265,6 +264,16 @@ gulp.task('serve:dist', ['default'], function() {
     server: dist(),
     middleware: [historyApiFallback()]
   });
+});
+
+gulp.task('generate-images', ['clean'], function() {
+  imageOptimizeTask('app/images/**/*', dist('images/default'), function() {
+    return $.imagemin({
+      progressive: true,
+      interlaced: true
+    });
+  });
+  imageOptimizeTask('app/images/**/*', dist('images/webp'), require('gulp-webp'));
 });
 
 // Build production files, the default task
